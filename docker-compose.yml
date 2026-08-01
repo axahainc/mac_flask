@@ -1,0 +1,39 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vtu_user
+      POSTGRES_PASSWORD: vtu_pass
+      POSTGRES_DB: vtu_db
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes: [".:/code"]
+    ports: ["8000:8000"]
+    env_file: .env
+    depends_on: [db, redis]
+
+  worker:
+    build: .
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    volumes: [".:/code"]
+    env_file: .env
+    depends_on: [db, redis]
+
+  beat:
+    build: .
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    volumes: [".:/code"]
+    env_file: .env
+    depends_on: [db, redis]
+
+volumes:
+  pgdata:
